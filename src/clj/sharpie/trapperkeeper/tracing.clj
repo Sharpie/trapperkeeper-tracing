@@ -31,3 +31,14 @@
   (GlobalTracer/register tracer)
   (alter-var-root #'*tracer* (constantly tracer)))
 
+(defn build-span
+  "Create a new span using the global tracer.
+
+  The returned span is started but not passed to the scope
+  manager for activation."
+  ([span-name]
+   (build-span span-name {}))
+  ([span-name span-options]
+   (-> *tracer*
+       (.buildSpan span-name)
+       .start)))

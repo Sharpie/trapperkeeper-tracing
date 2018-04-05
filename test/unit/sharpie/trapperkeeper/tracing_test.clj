@@ -21,3 +21,10 @@
 
   (testing "Calling set-tracer! a second time raises an error"
     (is (thrown? IllegalStateException (tracing/set-tracer! (new MockTracer))))))
+
+
+(deftest build-span-test
+  (binding [tracing/*tracer* mock-tracer]
+    (testing "Calling build-span with an operation name produces a span with that name."
+      (let [span (tracing/build-span "test span")]
+        (is (= "test span" (.operationName span)))))))
