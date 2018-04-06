@@ -28,3 +28,24 @@
     (testing "Calling build-span with an operation name produces a span with that name."
       (let [span (tracing/build-span "test span")]
         (is (= "test span" (.operationName span)))))))
+
+(deftest trace-test
+  (binding [tracing/*tracer* mock-tracer]
+    (testing "Traced operations record a span"
+      (tracing/trace "test trace 1" :foo)
+      (tracing/trace "test trace 2"
+        (tracing/trace "test trace 3" :bar))
+
+      (let [spans (.finishedSpans tracing/*tracer*)
+            _ (.reset tracing/*tracer*)]
+
+        (is (= 3 (count spans)))
+        (is (= ["test trace 1" "test trace 3" "test trace 2"]
+               (map #(.operationName %) spans)))))
+
+    (testing "Traced opertions record execution time"
+      (tracing/trace "test trace 1" (Thread/sleep 500))
+        (let [span (-> tracing/*tracer* .finishedSpans first)
+              _ (.reset tracing/*tracer*)]
+          (is (>= (- (.finishMicros span) (.startMicros span))
+                (long 0.5e6)))))))
