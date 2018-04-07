@@ -21,9 +21,11 @@
   :dependencies [[org.clojure/clojure]
 
                  [puppetlabs/trapperkeeper]
+                 [ring/ring-core]
 
                  [io.opentracing/opentracing-api ~opentracing-version]
                  [io.opentracing/opentracing-util ~opentracing-version]
                  [io.opentracing/opentracing-noop ~opentracing-version]]
 
-  :profiles {:dev {:dependencies [[io.opentracing/opentracing-mock ~opentracing-version]]}})
+  :profiles {:dev {:dependencies [[io.opentracing/opentracing-mock ~opentracing-version]
+                                  [ring-mock]]}})
