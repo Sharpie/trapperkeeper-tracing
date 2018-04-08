@@ -1,7 +1,7 @@
 (def opentracing-version "0.31.0")
 
 
-(defproject org.clojars.sharpie/trapperkeeper-tracing "0.0.1"
+(defproject org.clojars.sharpie/trapperkeeper-tracing "0.0.1-SNAPSHOT"
   :description "OpenTracing API bindings for use with the puppetlabs/trapperkeeper service framework."
   :license {:name "Apache License 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
