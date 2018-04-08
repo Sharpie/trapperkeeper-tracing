@@ -5,7 +5,8 @@
     [sharpie.trapperkeeper.tracing :as tracing]
     [sharpie.trapperkeeper.tracing.ring :as tracing-ring])
   (:import
-    (io.opentracing.mock MockSpan$MockContext MockTracer)))
+    (io.opentracing.mock MockSpan$MockContext MockTracer)
+    (io.opentracing.tag Tags)))
 
 (def mock-tracer (new MockTracer))
 
@@ -23,7 +24,7 @@
         (is (= "Hello, world!" (:body response)))))
 
     (testing "Executing the handler on a request with trace headers generates a span."
-      (let [request (-> (ring-mock/request :get "/testing")
+      (let [request (-> (ring-mock/request :get "https://somewhere.test/testing")
                         ;; NOTE: These header names are specific to the
                         ;;       MockTracer. Different tracers will respond
                         ;;       to different header names.
@@ -34,8 +35,13 @@
                         (ring-mock/header "spanid" "42"))
             response (wrapped-handler request)
             span (-> mock-tracer .finishedSpans first)
+            tags (.tags span)
             _ (.reset mock-tracer)]
 
         (is (= "GET" (.operationName span)))
         (is (= 9000 (-> span .context .traceId)))
-        (is (= 42 (.parentId span)))))))
+        (is (= 42 (.parentId span)))
+
+        (is (= Tags/SPAN_KIND_SERVER (get tags (.getKey Tags/SPAN_KIND))))
+        (is (= "https://somewhere.test/testing" (get tags (.getKey Tags/HTTP_URL))))
+        (is (= "GET" (get tags (.getKey Tags/HTTP_METHOD))))))))
