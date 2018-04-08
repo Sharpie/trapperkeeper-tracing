@@ -39,7 +39,17 @@
 
         (is (= 9000 (-> span .context .traceId)))
         (is (= 42 (.parentId span)))
-        (is (= "foo" (.getBaggageItem span "test-baggage-item")))))))
+        (is (= "foo" (.getBaggageItem span "test-baggage-item")))))
+
+    (testing "Calling build-span with tags produces a tagged span."
+      (let [span (tracing/build-span "test span with tags"
+                                     {:tags {"foo" "bar"
+                                             "baz" 42
+                                             "froob" false}})
+            tags (.tags span)]
+        (is (= "bar" (get tags "foo")))
+        (is (= 42 (get tags "baz")))
+        (is (false? (get tags "froob")))))))
 
 
 (deftest trace-test

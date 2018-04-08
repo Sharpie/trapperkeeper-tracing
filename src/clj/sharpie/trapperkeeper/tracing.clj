@@ -38,11 +38,15 @@
   identifies the operation. Optionally, a map may be passed containing
   additional data that will be set on the span. Options that may be used:
 
-    - `:child-of` An instance of io.opentracing.SpanContext or
-                  io.opentracing.Span to be set as the parent of the
-                  built span. If not passed, the currently active span
-                  from the scope manager will be used as the implicit
-                  parent. See `activate-span!`.
+    - :child-of An instance of io.opentracing.SpanContext or
+                io.opentracing.Span to be set as the parent of the
+                built span. If not passed, the currently active span
+                from the scope manager will be used as the implicit
+                parent. See `activate-span!`.
+
+    - :tags     A map of tags that will be set on the span instance.
+                Keys must be of type String. Values may be one of:
+                String, Boolean, or Number.
 
   The returned span is started but not passed to the scope
   manager for activation."
@@ -52,6 +56,10 @@
    (cond-> *tracer*
            true (.buildSpan span-name)
            (contains? span-options :child-of) (.asChildOf (:child-of span-options))
+           (contains? span-options :tags) ((partial reduce
+                                                    (fn [builder [k v]]
+                                                      (doto builder (.withTag k v))))
+                                           (:tags span-options))
            true .start)))
 
 (defn activate-span!
