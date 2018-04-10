@@ -53,14 +53,13 @@
   ([span-name]
    (build-span span-name {}))
   ([span-name span-options]
-   (cond-> *tracer*
-           true (.buildSpan span-name)
-           (contains? span-options :child-of) (.asChildOf (:child-of span-options))
-           (contains? span-options :tags) ((partial reduce
-                                                    (fn [builder [k v]]
-                                                      (doto builder (.withTag k v))))
-                                           (:tags span-options))
-           true .start)))
+   (let [span (.buildSpan *tracer* span-name)]
+     (when-let [parent (:child-of span-options)]
+       (.asChildOf span parent))
+     (when-let [tags (:tags span-options)]
+       (doseq [[k v] tags]
+         (.withTag span k v)))
+     (.start span))))
 
 (defn activate-span!
   "Register a span with the global tracer as the active span.
