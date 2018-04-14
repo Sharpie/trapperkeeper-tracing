@@ -13,7 +13,7 @@
     (com.uber.jaeger Tracer$Builder)
     (com.uber.jaeger.propagation CompositeCodec B3TextMapCodec TextMapCodec)
     (com.uber.jaeger.reporters NoopReporter)
-    (com.uber.jaeger.samplers ConstSampler)
+    (com.uber.jaeger.samplers ConstSampler ProbabilisticSampler RateLimitingSampler)
     (io.opentracing.propagation Format$Builtin)))
 
 
@@ -26,13 +26,46 @@
   names to use."
   [(schema/enum "b3" "jaeger")])
 
+(schema/defschema ConstSamplerConfiguration
+  "Hash structure for configuring a ConstSampler.
+
+  ConstSampler instances are parameterized by a boolean which indicates
+  whether every opertion is sampled."
+  {:type (schema/eq "const")
+   :param schema/Bool})
+
+(schema/defschema ProbabilisticSamplerConfiguration
+  "Hash structure for configuring a ProbabilisticSampler.
+
+  ProbabilisticSampler instances are parameterized by a floating point
+  value that indicates the probability a given operation will be sampled."
+  {:type (schema/eq "probabilistic")
+   :param java.lang.Double})
+
+(schema/defschema RateLimitingSamplerConfiguration
+  "Hash structure for configuring a RateLimitingSampler.
+
+  RateLimitingSampler instances are parameterized by a floating point
+  value that indicates the rate at which operations will be sampled."
+  {:type (schema/eq "ratelimiting")
+   :param java.lang.Double})
+
+(schema/defschema SamplerConfiguration
+  "Hash structure for configuring Jaeger Samplers."
+  (schema/conditional
+    #(= "const" (:type %)) ConstSamplerConfiguration
+    #(= "probabilistic" (:type %)) ProbabilisticSamplerConfiguration
+    #(= "ratelimiting" (:type %)) RateLimitingSamplerConfiguration))
+
+
 (schema/defschema TracerConfiguration
   "Hash structure for configuring Jaeger Tracers.
 
   Patterned after the environment variables and properties used by the
   com.uber.jaeger.Configuration class."
   {:service-name schema/Str
-   (schema/optional-key :codecs) CodecConfiguration})
+   (schema/optional-key :codecs) CodecConfiguration
+   (schema/optional-key :sampler) SamplerConfiguration})
 
 
 (schema/defn ^:always-validate create-codecs
@@ -48,6 +81,16 @@
           (for [fmt [Format$Builtin/TEXT_MAP Format$Builtin/HTTP_HEADERS]
                 args arglists]
             [fmt (new CompositeCodec args)]))))
+
+(schema/defn ^:always-validate create-sampler
+  "Creates a Jaeger sampler from a SamplerConfiguration."
+  [config :- SamplerConfiguration]
+  (let [param (:param config)]
+    (case (:type config)
+      "const" (new ConstSampler param)
+      "probabilistic" (new ProbabilisticSampler param)
+      "ratelimiting" (new RateLimitingSampler param))))
+
 
 (schema/defn ^:always-validate create-tracer-builder
   "Generate a new Jaeger Configuration instance from a hash of configuration.
@@ -83,9 +126,8 @@
       (.registerInjector builder fmt codec)
       (.registerExtractor builder fmt codec))
     ;; Configure Sampling
-    (if-let [sampler (:sampler config)]
-      ;; TODO: Implement create-sampler
-      (identity builder)
+    (if-let [sampler-config (:sampler config)]
+      (.withSampler builder (create-sampler sampler-config))
       (.withSampler builder (new ConstSampler false)))
     ;; Configure Reporting
     (if-let [sampler (:reporter config)]
