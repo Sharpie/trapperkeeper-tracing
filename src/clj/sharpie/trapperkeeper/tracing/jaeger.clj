@@ -9,11 +9,10 @@
   (:require
     [schema.core :as schema])
   (:import
-    ;; NOTE: The Jaeger namespace may be changing to io.jaegertracing.jaeger.
-    (com.uber.jaeger Tracer$Builder)
-    (com.uber.jaeger.propagation CompositeCodec B3TextMapCodec TextMapCodec)
-    (com.uber.jaeger.reporters NoopReporter)
-    (com.uber.jaeger.samplers ConstSampler ProbabilisticSampler RateLimitingSampler)
+    (io.jaegertracing Tracer$Builder)
+    (io.jaegertracing.propagation CompositeCodec B3TextMapCodec TextMapCodec)
+    (io.jaegertracing.reporters NoopReporter)
+    (io.jaegertracing.samplers ConstSampler ProbabilisticSampler RateLimitingSampler)
     (io.opentracing.propagation Format$Builtin)))
 
 

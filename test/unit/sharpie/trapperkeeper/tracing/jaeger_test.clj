@@ -4,7 +4,7 @@
     [sharpie.trapperkeeper.tracing :as tracing]
     [sharpie.trapperkeeper.tracing.jaeger :as jaeger])
   (:import
-    (com.uber.jaeger.reporters InMemoryReporter)
+    (io.jaegertracing.reporters InMemoryReporter)
     (io.opentracing.propagation Format$Builtin TextMapExtractAdapter)))
 
 

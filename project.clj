@@ -1,5 +1,5 @@
 (def opentracing-version "0.31.0")
-(def jaeger-version "0.26.0")
+(def jaeger-version "0.27.0-RC1")
 
 
 (defproject org.clojars.sharpie/trapperkeeper-tracing "0.0.1-SNAPSHOT"
@@ -29,10 +29,10 @@
                  [io.opentracing/opentracing-util ~opentracing-version]
                  [io.opentracing/opentracing-noop ~opentracing-version]
 
-                 [com.uber.jaeger/jaeger-core ~jaeger-version]
+                 [io.jaegertracing/jaeger-core ~jaeger-version]
                  ;; Shaded build of Thrift 0.9.2 used by Jaeger.  Frees other
                  ;; components to bring in a newer Thrift version if needed.
-                 [com.uber.jaeger/jaeger-thrift ~jaeger-version :classifier "thrift92"]]
+                 [io.jaegertracing/jaeger-thrift ~jaeger-version :classifier "thrift92"]]
 
   :profiles {:dev {:dependencies [[io.opentracing/opentracing-mock ~opentracing-version]
                                   [ring-mock]]}})
