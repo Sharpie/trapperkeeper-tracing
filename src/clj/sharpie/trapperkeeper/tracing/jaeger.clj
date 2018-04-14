@@ -11,8 +11,10 @@
   (:import
     (io.jaegertracing Tracer$Builder)
     (io.jaegertracing.propagation CompositeCodec B3TextMapCodec TextMapCodec)
-    (io.jaegertracing.reporters NoopReporter)
+    (io.jaegertracing.reporters CompositeReporter LoggingReporter
+                                NoopReporter Reporter RemoteReporter$Builder)
     (io.jaegertracing.samplers ConstSampler ProbabilisticSampler RateLimitingSampler)
+    (io.jaegertracing.senders HttpSender$Builder UdpSender)
     (io.opentracing.propagation Format$Builtin)))
 
 
@@ -24,6 +26,48 @@
   a map of HTTP headers, the codec would determine which HTTP header
   names to use."
   [(schema/enum "b3" "jaeger")])
+
+
+(schema/defschema HttpSenderConfiguration
+  "Configuration for sending spans as thrift data over HTTP."
+  {:type (schema/eq "http")
+   :endpoint schema/Str
+   ;; NOTE: Can use either username/password or token. User/password will
+   ;;       win if both are given.
+   (schema/optional-key :username) schema/Str
+   (schema/optional-key :password) schema/Str
+   (schema/optional-key :token) schema/Str
+   (schema/optional-key :max-packet-size) schema/Int})
+
+(schema/defschema UdpSenderConfiguration
+  "Configuration for sending spans as thrift data over UDP."
+  {:type (schema/eq "udp")
+   (schema/optional-key :host) schema/Str
+   (schema/optional-key :port) schema/Int
+   (schema/optional-key :max-packet-size) schema/Int})
+
+(schema/defschema SenderConfiguration
+  "Configuration for sending spans to a remote endpoint."
+  (schema/conditional
+    #(= "http" (:type %)) HttpSenderConfiguration
+    #(= "udp" (:type %)) UdpSenderConfiguration))
+
+(schema/defschema LoggingReporterConfiguration
+  "Configuration for a simple reporter that sends span data to the logger."
+  {:type (schema/eq "logging")})
+
+(schema/defschema RemoteReporterConfiguration
+  "Configuration for a reporter that sends span data to a Jaeger agent."
+  {:type (schema/eq "remote")
+   (schema/optional-key :sender) SenderConfiguration
+   (schema/optional-key :max-queue-size) schema/Int
+   (schema/optional-key :flush-interval) schema/Int})
+
+(schema/defschema ReporterConfiguration
+  [(schema/conditional
+     #(= "logging" (:type %)) LoggingReporterConfiguration
+     #(= "remote" (:type %)) RemoteReporterConfiguration)])
+
 
 (schema/defschema ConstSamplerConfiguration
   "Hash structure for configuring a ConstSampler.
@@ -64,6 +108,7 @@
   com.uber.jaeger.Configuration class."
   {:service-name schema/Str
    (schema/optional-key :codecs) CodecConfiguration
+   (schema/optional-key :reporters) ReporterConfiguration
    (schema/optional-key :sampler) SamplerConfiguration})
 
 
@@ -80,6 +125,48 @@
           (for [fmt [Format$Builtin/TEXT_MAP Format$Builtin/HTTP_HEADERS]
                 args arglists]
             [fmt (new CompositeCodec args)]))))
+
+(schema/defn ^:always-validate create-sender
+  "Creates a Jaeger Sender from a SenderConfiguration."
+  [config :- SenderConfiguration]
+  (case (:type config)
+    "http" (let [builder (new HttpSender$Builder (:endpoint config))
+                 username (:username config)
+                 password (:password config)
+                 token (:token config)]
+             (cond
+               (and (not (nil? username)) (not (nil? password)))
+                 (.withAuth builder username password)
+               (not (nil? token))
+                 (.withAuth builder token))
+             (when-let [max-packet-size (:max-packet-size config)]
+               (.withMaxPacketSize builder max-packet-size))
+
+             (.build builder))
+
+    "udp" (let [host (get config :host "")
+                port (get config :port 0)
+                max-packet-size (get config :max-packet-size 0)]
+            (new UdpSender host port max-packet-size))))
+
+(schema/defn ^:always-validate create-reporters
+  "Creates a Jaeger Reporter from a ReporterConfiguration."
+  [config :- ReporterConfiguration]
+  (let [reporters (for [c config]
+                    (case (:type c)
+                      "logging" (new LoggingReporter)
+                      "remote" (let [builder (new RemoteReporter$Builder)]
+                                 (when-let [queue-size (:max-queue-size c)]
+                                   (.withMaxQueueSize builder queue-size))
+                                 (when-let [flush-interval (:flush-interval c)]
+                                   (.withFlushInterval builder flush-interval))
+                                 (when-let [sender-config (:sender c)]
+                                   (.withSender builder (create-sender sender-config)))
+                                 (.build builder))))]
+    (if (> (count reporters) 1)
+      (new CompositeReporter (into-array Reporter reporters))
+      (first reporters))))
+
 
 (schema/defn ^:always-validate create-sampler
   "Creates a Jaeger sampler from a SamplerConfiguration."
@@ -129,7 +216,6 @@
       (.withSampler builder (create-sampler sampler-config))
       (.withSampler builder (new ConstSampler false)))
     ;; Configure Reporting
-    (if-let [sampler (:reporter config)]
-      ;; TODO: Implement create-reporter
-      (identity builder)
+    (if-let [reporter-config (:reporters config)]
+      (.withReporter builder (create-reporters reporter-config))
       (.withReporter builder (new NoopReporter)))))
