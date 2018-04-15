@@ -2,18 +2,27 @@
   "Development tools for TrapperKeeper apps."
   (:require
     [clojure.java.io :as io]
-    [clojure.pprint :as pprint :refer [pprint]]
+    [clojure.pprint :as pprint :refer [pp pprint]]
     [clojure.reflect :as reflect]
     [clojure.repl :refer :all]
 
     [clojure.tools.namespace.repl :as ns-tools]
 
+    ;; Core TrapperKeeper libs
+    [puppetlabs.trapperkeeper.core :as tk]
     [puppetlabs.trapperkeeper.app :as tk-app]
     [puppetlabs.trapperkeeper.bootstrap :as tk-bootstrap]
     [puppetlabs.trapperkeeper.config :as tk-config]
-    [puppetlabs.trapperkeeper.core :as tk]))
+    [puppetlabs.trapperkeeper.services :as tk-service]
+
+    ;; TrapperKeeper extension libs
+    [puppetlabs.trapperkeeper.services.webserver.jetty9-service :as tk-jetty]
+    [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :as tk-routing]))
 
 (ns-tools/set-refresh-dirs "dev" "src/clj")
+
+
+;; Functions for managing TK App lifecycle
 
 (def system
   "Refrence to TrapperKeeper app.
@@ -58,6 +67,11 @@
                  {:state :running :app app})
 
              (= :stopped state)
+                ;; FIXME: Something is wrong with stop/restart. After a
+                ;; restart, triggering stop kicks off the Stop lifecycle,
+                ;; but nothing actually happens. Which means services
+                ;; like webservers are left holding onto resources such
+                ;; as ports.
                (do
                  (tk-app/restart app)
                  (tk-app/check-for-errors! app)
@@ -108,3 +122,40 @@
   []
   (destroy-tk)
   (ns-tools/refresh :after 'dev-tools/start-tk))
+
+
+;; Helpers for inspecting TK app state
+
+(defn get-tk
+  "Get TrapperKeeper instances.
+
+  When called with no arguments, returns the TrapperkeeperApp instance
+  from the `system`.
+
+  When called with one argument, a service name, returns the Service
+  instance from the `system`."
+  ([]
+   (:app @system))
+
+  ([service-name]
+   (-> (:app @system)
+       (tk-app/get-service service-name))))
+
+(defn ls-tk
+  "Pretty-print TrapperKeeper state.
+
+  When called with no arguments, lists the names ofall TrapperKeeper services
+  in the current `system`.
+
+  When called with one argument, a service name, pretty-prints the state
+  of the given service."
+  ([]
+   (-> (get-tk)
+       tk-app/service-graph
+       keys
+       pprint))
+
+  ([service-name]
+   (-> (get-tk service-name)
+       tk-service/service-context
+       pprint)))
