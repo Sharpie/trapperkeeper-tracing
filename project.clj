@@ -22,6 +22,8 @@
   :dependencies [[org.clojure/clojure]
 
                  [puppetlabs/trapperkeeper]
+                 [puppetlabs/trapperkeeper-status]
+                 [puppetlabs/trapperkeeper-webserver-jetty9]
 
                  [ring/ring-core]
 
@@ -34,5 +36,9 @@
                  ;; components to bring in a newer Thrift version if needed.
                  [io.jaegertracing/jaeger-thrift ~jaeger-version :classifier "thrift92"]]
 
-  :profiles {:dev {:dependencies [[io.opentracing/opentracing-mock ~opentracing-version]
+  :profiles {:dev {:source-paths ["dev"]
+                   :resource-paths ["dev-resources"]
+                   :repl-options {:init-ns dev-tools}
+                   :dependencies [[org.clojure/tools.namespace]
+                                  [io.opentracing/opentracing-mock ~opentracing-version]
                                   [ring-mock]]}})
