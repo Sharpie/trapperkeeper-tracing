@@ -1,5 +1,5 @@
 (def opentracing-version "0.31.0")
-(def jaeger-version "0.27.0-RC1")
+(def jaeger-version "0.27.0")
 
 
 (defproject org.clojars.sharpie/trapperkeeper-tracing "0.0.1-SNAPSHOT"
@@ -31,10 +31,15 @@
                  [io.opentracing/opentracing-util ~opentracing-version]
                  [io.opentracing/opentracing-noop ~opentracing-version]
 
-                 [io.jaegertracing/jaeger-core ~jaeger-version]
-                 ;; Shaded build of Thrift 0.9.2 used by Jaeger.  Frees other
-                 ;; components to bring in a newer Thrift version if needed.
-                 [io.jaegertracing/jaeger-thrift ~jaeger-version :classifier "thrift92"]]
+                 [io.jaegertracing/jaeger-core ~jaeger-version
+                  ;; slf4j is managed by clj-parent.
+                  :exclusions [org.slf4j/slf4j-api]]
+                 ;; NOTE: jaeger-thrift currently has a hard dependency
+                 ;;       on v0.9.2 of Thrift.
+                 [io.jaegertracing/jaeger-thrift ~jaeger-version
+                  ;; httpclient is managed by clj-parent.
+                  :exclusions [org.apache.httpcomponents/httpclient
+                               org.apache.httpcomponents/httpcore]]]
 
   :profiles {:dev {:source-paths ["dev"]
                    :resource-paths ["dev-resources"]
