@@ -1,5 +1,5 @@
 (def opentracing-version "0.31.0")
-(def jaeger-version "0.27.0")
+(def jaeger-version "0.29.0")
 
 
 (defproject org.clojars.sharpie/trapperkeeper-tracing "0.0.1-SNAPSHOT"
